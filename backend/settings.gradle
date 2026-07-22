@@ -1,0 +1,9 @@
+// settings.gradle runs before the build itself
+// defines what the build is (project name, which sub-projects exist)
+// does NOT define HOW to build it
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'backend'

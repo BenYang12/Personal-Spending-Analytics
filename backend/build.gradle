@@ -1,0 +1,47 @@
+plugins {
+    id 'java'
+    // The Boot plugin adds tasks like `bootRun` (run the app) and `bootJar`
+    // (package app + embedded Tomcat into one executable jar).
+    id 'org.springframework.boot' version '4.1.0'
+    // Boot publishes a "bill of materials": tested-together versions for
+    // hundreds of libraries. This plugin applies it — note that none of the
+    // dependencies below carry a version number. Boot picks compatible ones.
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.ledgerlens'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        // Compile and run against JDK 21 regardless of the machine's default JDK.
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Each "starter" is a bundle of libraries + a trigger for auto-configuration.
+
+    // Spring MVC + embedded Tomcat: makes this a web app listening on :8080.
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+
+    // Actuator adds production endpoints (/actuator/health, metrics, info).
+    // Real ops teams rely on these; it's also our Step 1 proof of life.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Bean Validation (@NotNull, @Positive...) — used when we accept input later.
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // NOTE: no database dependencies yet — deliberately. See Step 4.
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()   // run tests with JUnit 5
+}

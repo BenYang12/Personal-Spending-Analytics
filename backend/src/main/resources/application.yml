@@ -1,0 +1,14 @@
+# Externalized configuration: auto-configured beans read their settings from here
+# (and from environment variables, which OVERRIDE this file
+# YAML nesting maps to dotted property names: the block below is the property "spring.application.name".
+spring:
+  application:
+    name: ledger-lens-backend
+
+# Actuator exposes many endpoints; over HTTP only "health" is on by default.
+# We state it explicitly so the intent is visible in config.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
