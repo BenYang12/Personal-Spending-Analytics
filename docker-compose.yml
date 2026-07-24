@@ -1,0 +1,29 @@
+# Declarative dev infrastructure: `docker compose up -d` reads this and starts
+# everything. Each entry under `services` becomes one container.
+services:
+  postgres:
+    image: postgres:16 # official image, major version pinned
+    container_name: ledgerlens-postgres
+    environment:
+      # The image reads these on FIRST startup to create the db and user.
+      # Dev-only credentials — in production these come from a secret store,
+      # never a file in git.
+      POSTGRES_DB: ledgerlens
+      POSTGRES_USER: ledgerlens
+      POSTGRES_PASSWORD: ledgerlens_dev
+    ports:
+      # host:container — Spring (on your Mac) will reach it at localhost:5432.
+      - "5433:5432"
+    volumes:
+      # volume -> durable storage that outlives the container
+      # Named volume: the database files live in Docker-managed storage and
+      # survive container restarts. `docker compose down -v` deletes it (reset).
+      # mount the named volume pgdata at the path, attach file system into existing directory tree
+      - pgdata:/var/lib/postgresql/data
+      # Init hook: every .sql in this dir runs in alphabetical order, but ONLY
+      # when the data volume is empty (first boot). schema.sql now; seed.sql
+      # joins it in Step 3 ("sch" < "se" alphabetically, so order stays right).
+      - ./db:/docker-entrypoint-initdb.d
+
+volumes:
+  pgdata:
