@@ -40,6 +40,16 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // JPA starter: pulls in Hibernate + Spring Data and TRIGGERS the
+    // auto-configuration that builds a DataSource (connection pool) and
+    // EntityManager at startup. This is why we waited until Postgres existed.
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // The Postgres JDBC driver. runtimeOnly: our code never imports it —
+    // Hibernate speaks to it through the JDBC interface at runtime.
+    runtimeOnly 'org.postgresql:postgresql'
+
 }
 
 tasks.named('test') {

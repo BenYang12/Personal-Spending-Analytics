@@ -2,6 +2,9 @@ package com.ledgerlens.backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import com.ledgerlens.backend.transaction.TransactionRepository;
 // Recall from COMP 301 -> Inversion of control: a software engineering architectural principle where the control of object creation, configuration, and execution flow is transferred from your custom application code to an external framework or container.
 
 // @Configuration -> this class may define beans (java objects managed by spring IOC container)
@@ -18,4 +21,17 @@ public class BackendApplication{
         // if any bean can't be built, app fails fast at startup
         SpringApplication.run(BackendApplication.class, args);
     }
+
+    // TEMPORARY (removed in Step 5): a CommandLineRunner bean runs once after
+    // startup. Watch the parameter: we ASK for a TransactionRepository and the
+    // container INJECTS the generated implementation — dependency injection,
+    // live. Nobody anywhere calls `new`.
+    @Bean
+    CommandLineRunner smokeTest(TransactionRepository transactions) {
+        return args -> System.out.println(
+                ">>> smoke test: " + transactions.count() + " transactions, biggest = $"
+                + transactions.findByCategory("Shopping").getFirst().getAmount());
+    }
+
+    
 }

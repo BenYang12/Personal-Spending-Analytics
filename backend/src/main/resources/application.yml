@@ -4,6 +4,25 @@
 spring:
   application:
     name: ledger-lens-backend
+  datasource:
+    # 5433, not 5432 — our compose file maps it there (macro-max owns 5432).
+    url: jdbc:postgresql://localhost:5433/ledgerlens
+    username: ledgerlens
+    # Dev-only. Spring config has an override chain: the env var
+    # SPRING_DATASOURCE_PASSWORD would beat this file — that's how the real
+    # secret stays out of git in production (Step 30).
+    password: ledgerlens_dev
+
+  jpa:
+    hibernate:
+      # validate = Hibernate NEVER touches the schema (schema.sql owns it);
+      # it only verifies entities match the tables at startup and fails fast
+      # if not. Never use 'update'/'create' against data you care about.
+      ddl-auto: validate
+    # Off = database sessions end when the service method returns, instead of
+    # staying open through view rendering. Best practice; the default (on)
+    # mostly exists for old server-rendered apps.
+    open-in-view: false
 
 # Actuator exposes many endpoints; over HTTP only "health" is on by default.
 # We state it explicitly so the intent is visible in config.
