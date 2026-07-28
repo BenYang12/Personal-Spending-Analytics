@@ -50,6 +50,10 @@ dependencies {
     // Hibernate speaks to it through the JDBC interface at runtime.
     runtimeOnly 'org.postgresql:postgresql'
 
+    // Token-bucket rate limiting. Plain library, not a Spring starter — so
+    // there's no auto-configuration: we wire it ourselves in the filter.
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+
 }
 
 tasks.named('test') {

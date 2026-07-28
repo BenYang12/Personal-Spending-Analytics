@@ -31,3 +31,10 @@ management:
     web:
       exposure:
         include: health
+
+# Our own custom property (not a Spring one) — read via @Value in the filter.
+# ${ENV_VAR:default} = use the environment variable if set, else the default.
+# So local dev just works, while production sets LEDGERLENS_API_KEY and this
+# file never holds the real secret. Same override chain as the db password.
+ledgerlens:
+  api-key: ${LEDGERLENS_API_KEY:dev-local-key}
