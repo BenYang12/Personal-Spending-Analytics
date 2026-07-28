@@ -2,6 +2,9 @@
 -- In banking, transactions is the source of truth, facts from the bank, never edited by my analytics
 -- Keeping derived data in separate tables (at bottom block) is what makes that safe. 
 -- Two more financial-data rules -> money is NUMERIC (never floats), and every transaction carries a unique external ID
+
+-- SQL files build the database
+-- entities describe tables to Hibernate. 
 CREATE TABLE accounts (
     id                 BIGSERIAL PRIMARY KEY,   -- our internal id, auto-increment
     plaid_account_id   TEXT UNIQUE,             -- NULL until a Plaid account is linked (Step 7)
@@ -19,7 +22,7 @@ CREATE TABLE transactions (
     -- The idempotency key: Plaid's stable id per transaction. UNIQUE means a
     -- re-sync can "upsert" (insert-or-update) instead of duplicating rows.
     plaid_transaction_id TEXT NOT NULL UNIQUE,
-    account_id           BIGINT NOT NULL REFERENCES accounts(id),
+    account_id           BIGINT NOT NULL REFERENCES accounts(id), --foreign key here!
     posted_date          DATE NOT NULL,
     -- NUMERIC(12,2) = exact decimal, 2 places. NEVER float/double for money:
     -- binary floats can't represent 0.10 exactly, and cents would drift.

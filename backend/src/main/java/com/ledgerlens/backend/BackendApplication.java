@@ -22,16 +22,5 @@ public class BackendApplication{
         SpringApplication.run(BackendApplication.class, args);
     }
 
-    // TEMPORARY (removed in Step 5): a CommandLineRunner bean runs once after
-    // startup. Watch the parameter: we ASK for a TransactionRepository and the
-    // container INJECTS the generated implementation — dependency injection,
-    // live. Nobody anywhere calls `new`.
-    @Bean
-    CommandLineRunner smokeTest(TransactionRepository transactions) {
-        return args -> System.out.println(
-                ">>> smoke test: " + transactions.count() + " transactions, biggest = $"
-                + transactions.findByCategory("Shopping").getFirst().getAmount());
-    }
-
     
 }
