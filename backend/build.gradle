@@ -54,6 +54,10 @@ dependencies {
     // there's no auto-configuration: we wire it ourselves in the filter.
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
 
+    // Plaid's official Java SDK (Retrofit-based HTTP client for their API).
+    implementation 'com.plaid:plaid-java:35.0.0'
+
+
 }
 
 tasks.named('test') {

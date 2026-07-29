@@ -46,6 +46,24 @@ public class Account{
     // JPA requires a no-arg constructor (Hibernates instantiates via reflection)
     protected Account(){}
 
+    //currently, nothing can create an account
+    // I'll add a public constructor below, and one getter
+
+    public Account(String plaidAccountId, String plaidAccessToken, String name, String type){
+        this.plaidAccountId = plaidAccountId;
+        this.plaidAccessToken = plaidAccessToken;
+        this.name = name;
+        this.type = type;
+        this.syncStatus = "IDLE";
+    }
+
+    // Package-private so only code in this package can read the token
+    String getPlaidAccessToken(){
+        return plaidAccessToken;
+    }
+
+
+
     // Getters only for what other code needs 
     public Long getId(){
         return id;

@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 // -> injectable wherever we declare it as a dependency.
 // JpaRepository<Account, Long> = "rows of Account, primary key type Long";
 // that alone gives us findAll(), findById(), save(), count(), delete()...
-public interface AccountRepository extends JpaRepository<Account,Long>{} // JpaRepository<Account, Long> -> <entity, its primary key>, holds just account objects, nothing in it is a pair
+// JpaRepository<Account, Long> -> <entity, its primary key>, holds just account objects, nothing in it is a pair
+public interface AccountRepository extends JpaRepository<Account,Long>{
+    // Optional<> b/c it may not exist
+    java.util.Optional<Account> findByPlaidAccountId(String plaidAccountId);
+} 
