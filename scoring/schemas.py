@@ -97,6 +97,13 @@ class ArchetypeResponse(BaseModel):
     distance_to_centroid: float
     evidence: list[FeatureEvidence]
     model_version: str
+    # The features this score was computed from. I return them so my backend can
+    # persist them in its `monthly_features` table — which means a stored score
+    # is always reproducible: I can see the exact inputs that produced it months
+    # later. A score with no record of its inputs is unauditable, and "why did
+    # you flag me?" is a question a financial app must be able to answer.
+    # Optional because /archetype's caller already has them.
+    features: dict[str, float] | None = None
 
 
 class TransactionFeatures(BaseModel):
@@ -138,6 +145,50 @@ class AnomalyResponse(BaseModel):
     results: list[AnomalyResult]
     flagged_count: int
     model_version: str
+
+
+class RawTransaction(BaseModel):
+    """One transaction exactly as my Spring backend stores it.
+
+    This is the payload for the endpoints my backend actually calls. It sends
+    rows straight from Postgres and lets this service do the feature
+    engineering, so there is only ever one implementation of my 26 feature
+    definitions — see feature_bridge.py for why that matters.
+    """
+
+    transaction_id: str
+    account_id: int
+    posted_date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", examples=["2026-05-17"])
+    # Positive = money out, negative = money in. I keep Plaid's convention all
+    # the way through so no layer has to remember to flip a sign.
+    amount: float
+    merchant: str
+    category: str
+    pending: bool = False
+
+
+class ScoreMonthRequest(BaseModel):
+    """Score one month, given the account's history.
+
+    I take the WIDER history rather than just the target month because
+    recurring-charge detection needs three months to recognise a subscription.
+    Sending one month would silently produce a recurring_share of 0.
+    """
+
+    account_id: int
+    month: str = Field(..., pattern=r"^\d{4}-\d{2}$", examples=["2026-05"])
+    transactions: list[RawTransaction] = Field(..., min_length=1, max_length=5000)
+
+
+class ScoreTransactionsRequest(BaseModel):
+    """Score an account's transactions for anomalies.
+
+    Same reasoning: every anomaly feature is relative to this account's own
+    past, so I need the history, not just the new rows.
+    """
+
+    account_id: int
+    transactions: list[RawTransaction] = Field(..., min_length=1, max_length=5000)
 
 
 class HealthResponse(BaseModel):
