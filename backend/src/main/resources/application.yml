@@ -44,6 +44,19 @@ management:
 # file never holds the real secret. Same override chain as the db password.
 ledgerlens:
   api-key: ${LEDGERLENS_API_KEY:dev-local-key}
+  scoring:
+    url: ${SCORING_SERVICE_URL:http://localhost:8000}
+    # These timeouts are a load-bearing safety mechanism, not tuning knobs.
+    # Java's default HTTP timeout is effectively infinite, so a hung scoring
+    # service would hold my request threads until Tomcat's pool was exhausted —
+    # at which point my whole API stops responding because of one slow
+    # dependency. Bounded timeouts turn that into a fast local failure I can
+    # fall back from.
+    connect-timeout-ms: 1000
+    # Read timeout is generous relative to reality: scoring a month takes ~30ms
+    # locally, so 5s means "something is genuinely wrong", not "we're busy".
+    read-timeout-ms: 5000
+
   plaid:
     # Empty default (":" with nothing after it) so the app still STARTS without
     # credentials — Plaid calls then fail with a clear 502 instead of the app
