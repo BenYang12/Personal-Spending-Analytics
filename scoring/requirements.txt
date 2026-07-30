@@ -7,6 +7,14 @@ scikit-learn==1.5.2
 numpy==2.1.3
 joblib==1.4.2
 
+# pandas is here for one reason: this service reuses the EXACT feature-
+# engineering code from /ml rather than reimplementing it. If I recomputed those
+# 26 features by hand — in Java, in this service, anywhere — the model would
+# eventually be fed numbers subtly different from the ones it trained on. That's
+# training/serving skew, and it fails silently: no error, just quietly worse
+# predictions. Sharing one implementation makes the bug impossible.
+pandas==2.2.3
+
 # FastAPI is the framework; uvicorn is the ASGI server that actually runs it —
 # roughly the equivalent of the embedded Tomcat inside my Spring app.
 fastapi==0.115.6
