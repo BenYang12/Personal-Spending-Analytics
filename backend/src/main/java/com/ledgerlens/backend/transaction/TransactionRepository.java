@@ -29,4 +29,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             GROUP BY t.category
             ORDER BY SUM(t.amount) DESC""")
     List<CategorySummary> summarizeByCategory(Long accountId, LocalDate start, LocalDate end);
+
+    java.util.Optional<Transaction> findByPlaidTransactionId(String plaidTransactionId);
+    // Derived DELETE: "In" takes a collection -> WHERE plaid_transaction_id IN (...).
+    // Returns the count so we can report how many removals actually applied.
+    // @Transactional is required for derived deletes (the service supplies it).
+    long deleteByPlaidTransactionIdIn(java.util.Collection<String> plaidTransactionIds);
+
 }

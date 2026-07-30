@@ -36,13 +36,13 @@ public class PlaidConfig{
     @Bean
     public PlaidApi plaidApi(){
         // The SDK takes credentials as a map and attaches them to every request
+        // Map.of() creates an immutable hashmap
         ApiClient apiClient = new ApiClient(Map.of(
                 "clientId", clientId,
                 "secret", secret));
 
         // Points the client at sandbox.plaid.com. Swapping this constant is
-        // the ONLY code change needed to go to production — the reason
-        // sandbox work is honest resume material.
+        // the ONLY code change needed to go to production
         apiClient.setPlaidAdapter(ApiClient.Sandbox);
 
         // Retrofit builds an implementation of the PlaidApi interface.

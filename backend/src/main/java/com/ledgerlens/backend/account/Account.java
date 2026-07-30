@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
+
 // JPA (Jakarta Persistance API) ->  a java specification for mapping Java objects to relational database rows (an ORM)
 // It's an interface, not an implementation. Hibernate is the implementation Spring Boot ships by default
 // Three layers...
@@ -35,7 +36,13 @@ public class Account{
 
     private String name;
     private String type;
+    // A Sync Cursor is an opaque string that acts like a digital bookmark for transaction data
+    // When you pull a user's transaction history, Plaid returns the data along with a next_cursor. The next time you request data, you pass that cursor back to Plaid.
+    // Plaid will then only return transaction events that happened after that bookmark
+    // Design wrinkle: Plaid's cursor belongs to an item (one bank connection, one access_token), but my schema puts sync_cursor on accounts.
+    // thus, service groups accounts by access_token, syncs each item once, and writes the resulting cursor to every account row in that item. 
     private String syncCursor;
+    // Sync Status refers to the state of data availability and health for a connected bank Item
     private String syncStatus;
 
     // the DB fills this via DEFAULT now(). insertable/updatable=false tells 
@@ -57,10 +64,25 @@ public class Account{
         this.syncStatus = "IDLE";
     }
 
-    // Package-private so only code in this package can read the token
-    String getPlaidAccessToken(){
+
+    public String getPlaidAccessToken(){
         return plaidAccessToken;
     }
+
+    // Needed by the sync service to translate Plaid's account ids into ours.
+    public String getPlaidAccountId(){
+        return plaidAccountId;
+    }
+
+    public String getSyncCursor(){
+        return syncCursor;
+    }
+
+    public void setSyncCursor(String syncCursor) { this.syncCursor = syncCursor; }
+
+    public void setSyncStatus(String syncStatus) { this.syncStatus = syncStatus; }
+
+
 
 
 

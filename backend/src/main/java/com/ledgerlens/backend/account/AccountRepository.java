@@ -12,4 +12,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AccountRepository extends JpaRepository<Account,Long>{
     // Optional<> b/c it may not exist
     java.util.Optional<Account> findByPlaidAccountId(String plaidAccountId);
+    java.util.List<Account> findByPlaidAccessTokenIsNotNull(); // "IsNotNull" is another derived-query keyword. Skips two hand-seeded accounts that have no token
 } 

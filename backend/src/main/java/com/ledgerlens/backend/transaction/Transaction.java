@@ -35,6 +35,31 @@ public class Transaction{
     // constructor
     protected Transaction(){}
 
+    public Transaction(String plaidTransactionId, Long accountId, LocalDate postedDate, BigDecimal amount, String merchant, String category, boolean pending) {
+        this.plaidTransactionId = plaidTransactionId;
+        this.accountId = accountId;
+        this.postedDate = postedDate;
+        this.amount = amount;
+        this.merchant = merchant;
+        this.category = category;
+        this.pending = pending;
+    }
+
+    // For Plaid's "modified" list: a pending charge settling with a final
+    // amount and a real merchant name. 
+    // Because this object is loaded inside a @Transactional method, Hibernate
+    // sees these field changes and flushes an UPDATE at commit. I never
+    // call save() for an already-loaded entity — that's "dirty checking".
+    public void updateFrom(LocalDate postedDate, BigDecimal amount, String merchant, String category, boolean pending) {
+        this.postedDate = postedDate;
+        this.amount = amount;
+        this.merchant = merchant;
+        this.category = category;
+        this.pending = pending;
+    }
+
+
+
 
     // getters
     public Long getId() { return id; }

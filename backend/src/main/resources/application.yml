@@ -4,6 +4,12 @@
 spring:
   application:
     name: ledger-lens-backend
+  # Loads backend/.env as properties, making PLAID_CLIENT_ID / PLAID_SECRET
+  # visible to the placeholders below. "optional:" = don't crash when the file
+  # is absent (CI, or a teammate without keys). This is why the secrets live in
+  # a gitignored file instead of in this one.
+  config:
+    import: optional:file:./.env[.properties]
   datasource:
     # 5433, not 5432 — our compose file maps it there (macro-max owns 5432).
     url: jdbc:postgresql://localhost:5433/ledgerlens
@@ -38,3 +44,12 @@ management:
 # file never holds the real secret. Same override chain as the db password.
 ledgerlens:
   api-key: ${LEDGERLENS_API_KEY:dev-local-key}
+  plaid:
+    # Empty default (":" with nothing after it) so the app still STARTS without
+    # credentials — Plaid calls then fail with a clear 502 instead of the app
+    # refusing to boot. Deliberate: the rest of the API stays usable.
+    client-id: ${PLAID_CLIENT_ID:}
+    secret: ${PLAID_SECRET:}
+    # sandbox | development | production. Sandbox = fake banks, fake money,
+    # identical API surface — the integration work is the same either way.
+    environment: sandbox
