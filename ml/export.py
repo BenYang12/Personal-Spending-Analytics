@@ -3,7 +3,7 @@
 This is the only place my ML code talks to my backend, and it only ever READS.
 I deliberately did not give Python a database connection: my Postgres is the
 source of truth for money, and a training script that could write to it is a
-risk with no upside.
+risk.
 """
 
 import os

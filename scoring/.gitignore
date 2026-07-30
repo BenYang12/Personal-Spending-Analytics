@@ -1,0 +1,9 @@
+# Secrets first, and before the file they protect exists. I leaked backend/.env
+# to GitHub once on this project by typing the ignore rule into the wrong file,
+# so now the rule always goes in first and I verify with `git check-ignore -v`
+# rather than trusting a clean `git status` — a tracked file stays quiet there.
+.env
+
+.venv/
+__pycache__/
+.pytest_cache/

@@ -1,0 +1,19 @@
+# I pin exact versions, and for scikit-learn that's not just tidiness — it's
+# required. Pickles are version-sensitive: a model saved by 1.5.2 and loaded by
+# a different minor version can warn, misbehave, or refuse to load outright.
+# This MUST match the scikit-learn version in ml/requirements.txt, because that
+# is the version that trained the pickles I'm about to load.
+scikit-learn==1.5.2
+numpy==2.1.3
+joblib==1.4.2
+
+# FastAPI is the framework; uvicorn is the ASGI server that actually runs it —
+# roughly the equivalent of the embedded Tomcat inside my Spring app.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# httpx gives me a test client that calls my app in-process, with no live
+# server, the same way MockMvc lets me test Spring controllers without a port.
+pytest==8.3.4
+httpx==0.28.1
