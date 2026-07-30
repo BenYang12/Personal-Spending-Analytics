@@ -2,6 +2,7 @@ package com.ledgerlens.backend.plaid;
 
 import com.ledgerlens.backend.account.Account;
 import com.ledgerlens.backend.account.AccountRepository;
+import com.ledgerlens.backend.account.SyncStatusService;
 import com.plaid.client.model.*;
 import com.plaid.client.request.PlaidApi;
 import java.io.IOException;
@@ -22,11 +23,17 @@ public class PlaidController{
     private final AccountRepository accounts;
     // 3. PlaidSyncService is a @Service bean, injected the same way.
     private final PlaidSyncService syncService;
+    // 4 & 5. The async wrapper and the status writer (Step 9).
+    private final PlaidSyncJob syncJob;
+    private final SyncStatusService syncStatus;
 
-    public PlaidController(PlaidApi plaid, AccountRepository accounts, PlaidSyncService syncService){
+    public PlaidController(PlaidApi plaid, AccountRepository accounts, PlaidSyncService syncService,
+                           PlaidSyncJob syncJob, SyncStatusService syncStatus){
         this.plaid = plaid;
         this.accounts = accounts;
         this.syncService = syncService;
+        this.syncJob = syncJob;
+        this.syncStatus = syncStatus;
     }
 
     // STEP 1: browser asks for a link_token to open Plaid Link.
@@ -111,13 +118,34 @@ public class PlaidController{
                 "linked", fetched.body().getAccounts().size()));
     }
 
-    // STEP 3: pull transactions for every linked Item.
-    // Synchronous for now — the caller waits for every page. Step 9 makes this
-    // @Async and returns 202 immediately, because a first sync on a real bank
-    // can take many seconds and no UI should block on it.
+    // STEP 3a: SYNCHRONOUS sync. Kept deliberately — it blocks until every
+    // page is stored, which makes it the honest thing to call from tests and
+    // from curl when you want to assert on the result. Not what the UI uses.
     @PostMapping("/sync")
     public ResponseEntity<?> sync() throws IOException {
         return ResponseEntity.ok(syncService.syncAll());
+    }
+
+    // STEP 3b: ASYNCHRONOUS refresh — what the dashboard actually calls.
+    // Returns 202 ACCEPTED, whose precise meaning is "I have taken
+    // responsibility for this work; it is not finished." That is exactly the
+    // contract here, and it's why 202 rather than 200.
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh() {
+        // Mark SYNCING first, in its own committed transaction, so a client
+        // polling /api/accounts sees the state change immediately. Do this
+        // BEFORE handing off, or a fast sync could finish and set IDLE before
+        // we ever wrote SYNCING — a lost update.
+        syncStatus.mark(SyncStatusService.SYNCING);
+
+        // Returns instantly: the proxy hands runSync() to the plaid-sync pool.
+        syncJob.runSync();
+
+        return ResponseEntity.accepted().body(java.util.Map.of(
+                "status", "SYNCING",
+                // Tell the client HOW to find out when it's done. An async API
+                // that gives you no way to check progress is a dead end.
+                "poll", "GET /api/accounts and watch syncStatus"));
     }
 
     // A record as the request body: Jackson deserializes {"publicToken": "..."}

@@ -1,0 +1,15 @@
+# Secrets first, and deliberately at the top. I already leaked backend/.env to
+# GitHub once on this project by typing the ignore rule into the wrong file, so
+# now the rule goes in before the file it protects ever exists. I verify with
+# `git check-ignore -v ml/.env` rather than trusting a clean `git status` — a
+# tracked file stays quiet in status, which is exactly how I got caught last time.
+.env
+
+# I don't commit the venv or the data snapshot — both are regenerable, and the
+# CSV is a copy of my database rather than source I maintain.
+.venv/
+data/*.csv
+__pycache__/
+.pytest_cache/
+
+# I DO commit the trained pickles (see models/README.md for why).

@@ -41,6 +41,12 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+    // Mockito: creates stand-in ("mock") objects so we can test our sync logic
+    // without calling Plaid or touching Postgres. Version omitted — Boot's BOM
+    // picks one compatible with its JUnit.
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+
     // JPA starter: pulls in Hibernate + Spring Data and TRIGGERS the
     // auto-configuration that builds a DataSource (connection pool) and
     // EntityManager at startup. This is why we waited until Postgres existed.

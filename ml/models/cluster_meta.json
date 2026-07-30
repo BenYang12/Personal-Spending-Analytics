@@ -1,0 +1,233 @@
+{
+  "k": 6,
+  "feature_order": [
+    "txn_count",
+    "avg_ticket",
+    "ticket_variability",
+    "merchant_diversity",
+    "weekend_ratio",
+    "recurring_share",
+    "fixed_share",
+    "spend_to_income",
+    "share_dining",
+    "share_groceries",
+    "share_subscriptions",
+    "share_transport",
+    "share_shopping",
+    "share_entertainment"
+  ],
+  "archetypes": {
+    "0": {
+      "name": "Weekend Spender",
+      "description": "This group spends mostly on weekends, spends on entertainment, eats out often.",
+      "evidence": [
+        {
+          "feature": "weekend_ratio",
+          "std_devs_from_average": 1.42
+        },
+        {
+          "feature": "share_entertainment",
+          "std_devs_from_average": 1.41
+        },
+        {
+          "feature": "share_dining",
+          "std_devs_from_average": 0.88
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 19.203,
+        "avg_ticket": 59.397,
+        "ticket_variability": 0.588,
+        "merchant_diversity": 0.739,
+        "weekend_ratio": 0.745,
+        "recurring_share": 0.032,
+        "fixed_share": 0.463,
+        "spend_to_income": 0.603,
+        "share_dining": 0.429,
+        "share_groceries": 0.077,
+        "share_subscriptions": 0.032,
+        "share_transport": 0.081,
+        "share_shopping": 0.139,
+        "share_entertainment": 0.242
+      }
+    },
+    "1": {
+      "name": "Frequent Small Spender",
+      "description": "This group makes many small purchases, sticks to a few merchants, eats out often.",
+      "evidence": [
+        {
+          "feature": "txn_count",
+          "std_devs_from_average": 1.88
+        },
+        {
+          "feature": "merchant_diversity",
+          "std_devs_from_average": -1.35
+        },
+        {
+          "feature": "share_dining",
+          "std_devs_from_average": 0.87
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 43.75,
+        "avg_ticket": 9.249,
+        "ticket_variability": 0.59,
+        "merchant_diversity": 0.486,
+        "weekend_ratio": 0.345,
+        "recurring_share": 0.223,
+        "fixed_share": 0.663,
+        "spend_to_income": 0.414,
+        "share_dining": 0.428,
+        "share_groceries": 0.161,
+        "share_subscriptions": 0.116,
+        "share_transport": 0.225,
+        "share_shopping": 0.07,
+        "share_entertainment": -0.0
+      }
+    },
+    "2": {
+      "name": "Subscription Creep",
+      "description": "This group is subscription-heavy, carries a lot of subscriptions, shops at many different merchants.",
+      "evidence": [
+        {
+          "feature": "share_subscriptions",
+          "std_devs_from_average": 1.86
+        },
+        {
+          "feature": "recurring_share",
+          "std_devs_from_average": 1.5
+        },
+        {
+          "feature": "merchant_diversity",
+          "std_devs_from_average": 0.99
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 18.556,
+        "avg_ticket": 21.929,
+        "ticket_variability": 0.63,
+        "merchant_diversity": 0.902,
+        "weekend_ratio": 0.368,
+        "recurring_share": 0.318,
+        "fixed_share": 0.659,
+        "spend_to_income": 0.416,
+        "share_dining": 0.194,
+        "share_groceries": 0.198,
+        "share_subscriptions": 0.315,
+        "share_transport": 0.068,
+        "share_shopping": 0.137,
+        "share_entertainment": 0.088
+      }
+    },
+    "3": {
+      "name": "Big-Ticket Buyer",
+      "description": "This group has large typical purchases, shops a lot, spends most of their income.",
+      "evidence": [
+        {
+          "feature": "avg_ticket",
+          "std_devs_from_average": 1.88
+        },
+        {
+          "feature": "share_shopping",
+          "std_devs_from_average": 1.75
+        },
+        {
+          "feature": "spend_to_income",
+          "std_devs_from_average": 1.29
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 8.343,
+        "avg_ticket": 175.426,
+        "ticket_variability": 0.947,
+        "merchant_diversity": 0.872,
+        "weekend_ratio": 0.361,
+        "recurring_share": 0.026,
+        "fixed_share": 0.38,
+        "spend_to_income": 0.766,
+        "share_dining": 0.091,
+        "share_groceries": -0.0,
+        "share_subscriptions": 0.026,
+        "share_transport": 0.217,
+        "share_shopping": 0.596,
+        "share_entertainment": 0.07
+      }
+    },
+    "4": {
+      "name": "Essentials Focused",
+      "description": "This group spends heavily on groceries, rarely eats out, spends mostly on weekdays.",
+      "evidence": [
+        {
+          "feature": "share_groceries",
+          "std_devs_from_average": 1.73
+        },
+        {
+          "feature": "share_dining",
+          "std_devs_from_average": -0.85
+        },
+        {
+          "feature": "weekend_ratio",
+          "std_devs_from_average": -0.78
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 13.325,
+        "avg_ticket": 43.893,
+        "ticket_variability": 0.504,
+        "merchant_diversity": 0.667,
+        "weekend_ratio": 0.239,
+        "recurring_share": 0.077,
+        "fixed_share": 0.635,
+        "spend_to_income": 0.543,
+        "share_dining": 0.08,
+        "share_groceries": 0.665,
+        "share_subscriptions": 0.064,
+        "share_transport": 0.191,
+        "share_shopping": 0.0,
+        "share_entertainment": -0.0
+      }
+    },
+    "5": {
+      "name": "Dining Led",
+      "description": "This group purchase sizes vary a lot, has low fixed costs, spends most of their income.",
+      "evidence": [
+        {
+          "feature": "ticket_variability",
+          "std_devs_from_average": 5.42
+        },
+        {
+          "feature": "fixed_share",
+          "std_devs_from_average": -3.7
+        },
+        {
+          "feature": "spend_to_income",
+          "std_devs_from_average": 2.72
+        }
+      ],
+      "centroid_real_units": {
+        "txn_count": 21.167,
+        "avg_ticket": 8.544,
+        "ticket_variability": 2.952,
+        "merchant_diversity": 0.416,
+        "weekend_ratio": 0.824,
+        "recurring_share": 0.206,
+        "fixed_share": 0.0,
+        "spend_to_income": 1.0,
+        "share_dining": 0.75,
+        "share_groceries": 0.0,
+        "share_subscriptions": 0.116,
+        "share_transport": 0.0,
+        "share_shopping": 0.134,
+        "share_entertainment": 0.0
+      }
+    }
+  },
+  "silhouette": 0.4870611534685771,
+  "validation": {
+    "adjusted_rand_index": 0.986,
+    "purity": 0.994,
+    "n_synthetic_months": 360
+  },
+  "n_training_months": 371,
+  "trained_on": "60 synthetic users (known archetypes) + my real Plaid/seed accounts"
+}

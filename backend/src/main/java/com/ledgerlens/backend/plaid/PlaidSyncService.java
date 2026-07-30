@@ -169,7 +169,7 @@ public class PlaidSyncService{
                 t.getDate(), amount, merchant, category, pending));
         return true;
     }
-        // Real-world data is full of nulls. merchant_name is the cleaned-up
+    // Real-world data is full of nulls. merchant_name is the cleaned-up
     // merchant ("Starbucks"); name is the raw bank descriptor
     // ("STARBUCKS #2140 PURCHASE"). Prefer clean, fall back to raw, then to a
     // placeholder — our column is NOT NULL, so this method may never return null.
