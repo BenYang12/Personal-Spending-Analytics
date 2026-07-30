@@ -60,6 +60,14 @@ dependencies {
     // there's no auto-configuration: we wire it ourselves in the filter.
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
 
+    // The official Anthropic Java SDK, for my advice layer.
+    // Worth knowing: this pulls in Jackson 2 (com.fasterxml.jackson.*) while
+    // Spring Boot 4 uses Jackson 3 (tools.jackson.*). They coexist fine —
+    // different package names entirely — but it does mean two Jackson versions
+    // on my classpath, and the annotations on my structured-output record are
+    // Jackson 2's while my Spring DTOs use Jackson 3's.
+    implementation 'com.anthropic:anthropic-java:2.39.0'
+
     // Plaid's official Java SDK (Retrofit-based HTTP client for their API).
     implementation 'com.plaid:plaid-java:35.0.0'
 

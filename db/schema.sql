@@ -67,3 +67,24 @@ CREATE TABLE model_scores (
     UNIQUE (subject_type, subject_id, model_name)   -- re-scoring replaces
 );
 
+
+
+-- ============ ADVICE CACHE (derived, rebuildable) ============
+-- Cached LLM advice per account-month. Without this every dashboard load is a
+-- billable, slow, non-deterministic model call — and the same month's advice
+-- would be worded differently on every refresh, which looks broken.
+--
+-- inputs_hash is the interesting column: I cache on a fingerprint of the ML
+-- output the advice describes, not just (account, month). A Plaid sync or a
+-- retrain changes that fingerprint and the advice regenerates, so a cache entry
+-- can never describe data that no longer exists.
+CREATE TABLE IF NOT EXISTS advice_cache (
+    id           BIGSERIAL PRIMARY KEY,
+    account_id   BIGINT NOT NULL REFERENCES accounts(id),
+    month        DATE NOT NULL,
+    source       TEXT NOT NULL,              -- 'claude' | 'claude-retry' | 'rule-based'
+    advice       JSONB NOT NULL,
+    inputs_hash  TEXT NOT NULL,
+    generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (account_id, month)
+);
