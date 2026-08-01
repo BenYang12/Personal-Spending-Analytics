@@ -77,8 +77,33 @@ public class ScoringService {
     public record ArchetypeResult(
             Long accountId, String month, String archetype, String description,
             Integer cluster, BigDecimal distanceToCentroid,
-            List<ScoringDtos.FeatureEvidence> evidence,
+            List<Evidence> evidence,
             String modelVersion, boolean stale, String note) {
+    }
+
+    // My PUBLIC evidence shape, deliberately separate from ScoringDtos.FeatureEvidence.
+    //
+    // I found this while writing the frontend's TypeScript types: ArchetypeResult
+    // was reusing the DTO I built for the *Python* wire, which carries
+    // @JsonNaming(SnakeCaseStrategy). So my own public API was emitting
+    // `your_value` and `population_average` while every other field in every
+    // other endpoint was camelCase — an internal transport detail leaking into
+    // the contract my dashboard consumes.
+    //
+    // The lesson generalises: a DTO shaped for one boundary shouldn't be reused
+    // at a different boundary just because the fields happen to line up. The
+    // Python service and my dashboard are two different audiences with two
+    // different conventions.
+    public record Evidence(
+            String feature,
+            BigDecimal yourValue,
+            BigDecimal populationAverage,
+            BigDecimal stdDevsFromAverage) {
+
+        static Evidence from(ScoringDtos.FeatureEvidence wire) {
+            return new Evidence(wire.feature(), wire.yourValue(),
+                    wire.populationAverage(), wire.stdDevsFromAverage());
+        }
     }
 
     public record AnomalyScanResult(
@@ -120,9 +145,13 @@ public class ScoringService {
             persistScore(ModelScore.SUBJECT_MONTH, featureId, response.modelVersion(),
                     response.distanceToCentroid(), response.archetype());
 
+            // Map the Python wire shape onto my public shape at the boundary.
+            List<Evidence> evidence = response.evidence() == null ? List.of()
+                    : response.evidence().stream().map(Evidence::from).toList();
+
             return new ArchetypeResult(accountId, month.toString(), response.archetype(),
                     response.description(), response.cluster(), response.distanceToCentroid(),
-                    response.evidence(), response.modelVersion(), false, null);
+                    evidence, response.modelVersion(), false, null);
 
         } catch (ScoringUnavailableException error) {
             // THE FALLBACK. The model service is down, so I serve the last
