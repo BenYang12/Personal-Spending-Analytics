@@ -26,6 +26,10 @@ export type Account = {
   name: string;
   type: string;
   syncStatus: string;
+  /** Total transactions — used to hide accounts too thin to be worth showing. */
+  transactionCount: number;
+  /** Months with data, newest first ("2026-05") — populates the month picker. */
+  months: string[];
 };
 
 export type CategorySummary = {
