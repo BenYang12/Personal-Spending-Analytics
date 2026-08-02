@@ -37,6 +37,32 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     long deleteByPlaidTransactionIdIn(java.util.Collection<String> plaidTransactionIds);
 
     /**
+     * Per-account activity summary: how many transactions, and which months.
+     *
+     * ONE query for every account rather than one per account. The naive version
+     * — loop the accounts, count each — is the N+1 problem, and with 14 accounts
+     * it would be 14 round trips to render a dropdown.
+     *
+     * `TO_CHAR(..., 'YYYY-MM')` produces the month key the frontend uses in its
+     * URL, so no date formatting has to be duplicated client-side.
+     */
+    @Query(value = """
+            SELECT account_id                         AS account_id,
+                   TO_CHAR(posted_date, 'YYYY-MM')    AS month,
+                   COUNT(*)                           AS transaction_count
+            FROM transactions
+            GROUP BY account_id, TO_CHAR(posted_date, 'YYYY-MM')
+            ORDER BY account_id, month
+            """, nativeQuery = true)
+    List<AccountMonthRow> findActivityByAccountMonth();
+
+    interface AccountMonthRow {
+        Long getAccountId();
+        String getMonth();
+        long getTransactionCount();
+    }
+
+    /**
      * Detect recurring charges for the "your subscriptions" view.
      *
      * A subscription is the same (merchant, amount) charged in at least 3
