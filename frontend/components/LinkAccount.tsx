@@ -21,7 +21,7 @@ import { usePlaidLink } from "react-plaid-link";
 
 type Status = "idle" | "preparing" | "exchanging" | "syncing" | "done" | "error";
 
-export default function LinkAccount() {
+export default function LinkAccount({ prominent = false }: { prominent?: boolean }) {
   const router = useRouter();
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -120,12 +120,17 @@ export default function LinkAccount() {
         type="button"
         onClick={() => open()}
         disabled={!ready || !linkToken || busy}
-        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white
-                   transition hover:bg-zinc-700 focus:outline-none focus:ring-2
+        className={`rounded-md bg-zinc-900 font-medium text-white transition
+                   hover:bg-zinc-700 focus:outline-none focus:ring-2
                    focus:ring-zinc-900 focus:ring-offset-2
-                   disabled:cursor-not-allowed disabled:bg-zinc-300"
+                   disabled:cursor-not-allowed disabled:bg-zinc-300
+                   ${prominent ? "px-6 py-3 text-base" : "px-4 py-2 text-sm"}`}
       >
-        {busy ? "Working…" : "Link a bank account"}
+        {busy
+          ? "Connecting…"
+          : prominent
+            ? "Connect securely with Plaid"
+            : "Link account"}
       </button>
 
       {/* aria-live so the status change is announced, not just shown. A sighted

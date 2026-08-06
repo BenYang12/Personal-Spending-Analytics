@@ -1,4 +1,5 @@
 import AdvicePanel from "@/components/AdvicePanel";
+import AccountOnboarding from "@/components/AccountOnboarding";
 import AnomalyList from "@/components/AnomalyList";
 import ArchetypeCard from "@/components/ArchetypeCard";
 import CategoryBars from "@/components/CategoryBars";
@@ -74,12 +75,8 @@ export default async function Dashboard({
 
   if (accounts.length === 0) {
     return (
-      <Shell action={<LinkAccount />}>
-        <Notice tone="info">
-          No accounts with enough transaction history yet. Link a bank account to
-          get started — the Plaid sandbox accepts{" "}
-          <code>user_good</code> / <code>pass_good</code>.
-        </Notice>
+      <Shell>
+        <AccountOnboarding connectedAccounts={allAccounts} />
       </Shell>
     );
   }

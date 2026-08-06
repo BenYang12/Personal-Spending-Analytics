@@ -7,11 +7,12 @@ archetypes, and runs fraud-style anomaly detection to flag unusual charges — w
 strictly downstream of the deterministic ML, constrained to a JSON schema it cannot break.
 
 ```bash
-git clone <this-repo> && cd Personal-Spending-Analytics
+git clone https://github.com/BenYang12/Personal-Spending-Analytics && cd Personal-Spending-Analytics
 docker compose up -d          # then open http://localhost:3000
 ```
 
-Four services, one command, seeded data included. No API keys required to see the full dashboard.
+Four services, one command. New databases start empty and guide the user through Plaid Sandbox;
+the synthetic portfolio dataset is available as an explicit demo mode.
 
 ---
 
@@ -20,9 +21,9 @@ Four services, one command, seeded data included. No API keys required to see th
 Commercial budget apps **categorize**: they tell you that you spent $820 on dining. This one
 **models behavior**:
 
-- **Unsupervised clustering** assigns each account-month one of six archetypes — *Weekend Spender*,
-  *Subscription Creep*, *Big-Ticket Buyer* — from 14 behavioral features, not hand-written rules.
-- **Anomaly detection** scores every transaction against *that account's own history*, so a $400
+- **Unsupervised clustering** assigns each account-month one of six archetypes — _Weekend Spender_,
+  _Subscription Creep_, _Big-Ticket Buyer_ — from 14 behavioral features, not hand-written rules.
+- **Anomaly detection** scores every transaction against _that account's own history_, so a $400
   grocery run is routine for one user and flagged for another.
 - **Both models are evaluated with real numbers**, including a comparison against a simpler
   baseline that the sophisticated model does not always win.
@@ -38,18 +39,18 @@ Commercial budget apps **categorize**: they tell you that you spent $820 on dini
 Measured on held-out accounts with freshly injected anomalies. Full protocol and limitations in
 **[ml/EVALUATION.md](ml/EVALUATION.md)**.
 
-| Method | Precision | Recall | F1 | Average precision |
-|---|---|---|---|---|
-| **Isolation Forest** | 0.645 | **0.833** | **0.727** | **0.794** |
-| z-score baseline | 0.333 | 0.292 | 0.311 | 0.271 |
+| Method               | Precision | Recall    | F1        | Average precision |
+| -------------------- | --------- | --------- | --------- | ----------------- |
+| **Isolation Forest** | 0.645     | **0.833** | **0.727** | **0.794**         |
+| z-score baseline     | 0.333     | 0.292     | 0.311     | 0.271             |
 
 **Recall by attack type** — the table that actually matters:
 
-| Attack pattern | Isolation Forest | z-score baseline |
-|---|---|---|
-| Large charge in a known category | 75% | **100%** |
-| Large charge, new merchant + new category | **100%** | 75% |
-| Card-testing burst (several tiny charges, one day) | **81%** | **0%** |
+| Attack pattern                                     | Isolation Forest | z-score baseline |
+| -------------------------------------------------- | ---------------- | ---------------- |
+| Large charge in a known category                   | 75%              | **100%**         |
+| Large charge, new merchant + new category          | **100%**         | 75%              |
+| Card-testing burst (several tiny charges, one day) | **81%**          | **0%**           |
 
 The baseline **wins** on simple amount spikes — a z-score is the right tool for "one number is
 large." The forest wins where weak signals have to combine. The honest production conclusion is to
@@ -60,29 +61,29 @@ run both and take the union.
 k=6 chosen by silhouette analysis (0.487) over 371 account-months × 14 features.
 
 Unsupervised learning normally offers no way to check whether clusters mean anything. Because
-synthetic users were generated with *known* archetypes, the pipeline can be scored against ground
+synthetic users were generated with _known_ archetypes, the pipeline can be scored against ground
 truth:
 
-| Metric | Score |
-|---|---|
+| Metric              | Score     |
+| ------------------- | --------- |
 | Adjusted Rand Index | **0.986** |
-| Cluster purity | **0.994** |
+| Cluster purity      | **0.994** |
 
 ---
 
 ## The dashboard
 
 A single scrolling page, server-rendered, showing the model output in the order a person actually
-asks about it: *who am I → where did it go → what looks wrong → what should I do.*
+asks about it: _who am I → where did it go → what looks wrong → what should I do._
 
-| Panel | What it shows |
-|---|---|
-| **Spending archetype** | The cluster label plus the evidence — "78% weekend spend vs 42% typical" |
-| **Where it went** | Category breakdown as CSS bars inside a real `<table>` |
-| **Spending trend** | Six months of totals, selected month highlighted |
-| **Unusual charges** | Flagged transactions with amounts, dates, and why they were flagged |
-| **Recurring charges** | Detected subscriptions, led by annual cost |
-| **Budget advice** | Summary, three recommendations, always labeled AI-generated or rule-based |
+| Panel                  | What it shows                                                             |
+| ---------------------- | ------------------------------------------------------------------------- |
+| **Spending archetype** | The cluster label plus the evidence — "78% weekend spend vs 42% typical"  |
+| **Where it went**      | Category breakdown as CSS bars inside a real `<table>`                    |
+| **Spending trend**     | Six months of totals, selected month highlighted                          |
+| **Unusual charges**    | Flagged transactions with amounts, dates, and why they were flagged       |
+| **Recurring charges**  | Detected subscriptions, led by annual cost                                |
+| **Budget advice**      | Summary, three recommendations, always labeled AI-generated or rule-based |
 
 Two product decisions worth calling out:
 
@@ -90,7 +91,7 @@ Two product decisions worth calling out:
 in three is a false positive. Red alarm styling would misrepresent what the model knows and train
 users to distrust it, so the panel uses neutral amber and footnotes the precision.
 
-**Advice always shows its provenance.** The badge reads *AI-generated* or *Rule-based* every time,
+**Advice always shows its provenance.** The badge reads _AI-generated_ or _Rule-based_ every time,
 not only on failure — hiding it would imply AI authorship is the norm and conceal the fallback that
 makes the feature work with no API key at all.
 
@@ -134,14 +135,14 @@ flowchart TB
 2. **One implementation of feature engineering.** The scoring service imports the exact feature code
    used for training rather than reimplementing it in Java. Two implementations of 26 feature
    definitions would drift, and the model would silently be fed unfamiliar numbers —
-   *training/serving skew*, which fails without any error.
+   _training/serving skew_, which fails without any error.
 
 3. **Immutable events vs. derived data.** `transactions` is the source of truth and is never edited
    by analytics. `monthly_features`, `model_scores`, and `advice_cache` are derived — deletable and
    rebuildable. Model scores live in their own table so a retrain never rewrites financial records.
 
 4. **The dashboard reads through Server Components.** The API key is used server-side and never
-   reaches the browser *by construction* — there is nothing to leak. Only the browser-initiated
+   reaches the browser _by construction_ — there is nothing to leak. Only the browser-initiated
    Plaid mutations go through a proxy route, which carries an endpoint allowlist.
 
 ---
@@ -150,7 +151,7 @@ flowchart TB
 
 **Idempotent transaction ingestion.** Plaid's `/transactions/sync` returns `added`, `modified`, and
 `removed` with cursor pagination. Re-running a completed sync returns `added: 0` — enforced by a
-database `UNIQUE` constraint *and* application-level upserts, so a bug in one layer cannot produce
+database `UNIQUE` constraint _and_ application-level upserts, so a bug in one layer cannot produce
 duplicates.
 
 **Graceful degradation, tested end to end.** Killing the ML service returns cached scores marked
@@ -174,13 +175,46 @@ constant-time comparison, with a bucket4j token bucket at 60 requests/minute.
 
 ### Everything in Docker (recommended)
 
+Choose one first-run path.
+
+**Plaid-first onboarding:** copy the root environment template, add your Plaid Sandbox application
+credentials, then start the stack. The application developer supplies these API credentials; end
+users never do.
+
+```bash
+cp .env.example .env
+# Edit .env and set PLAID_CLIENT_ID and PLAID_SECRET
+docker compose up -d --build
+```
+
+Open **http://localhost:3000**, click **Connect securely with Plaid**, and use Plaid's simulated
+bank credentials: `user_good` / `pass_good`. Bank authentication happens inside Plaid Link; Ledger
+Lens never receives a bank username or password.
+
+**Empty onboarding without Plaid credentials:**
+
 ```bash
 docker compose up -d
 ```
 
-Postgres, the scoring service, the Spring API, and the dashboard. Open **http://localhost:3000**.
-The database seeds itself with ~200 transactions containing deliberate patterns — subscriptions,
-weekend spikes, and one planted $1,899 anomaly.
+The application still starts and displays onboarding, but the connection action reports that Plaid
+is not configured.
+
+**Synthetic portfolio demo:** opt in before the database is initialized. No Plaid credentials are
+required for this mode.
+
+```bash
+LEDGERLENS_DEMO_DATA=true docker compose up -d
+```
+
+Demo mode seeds ~200 transactions containing subscriptions, weekend spikes, and one planted
+$1,899 anomaly. Initialization flags apply only to a new Postgres volume. To switch an existing
+local installation, run `docker compose down -v` first; this permanently deletes that local
+database.
+
+Check the running stack with `docker compose ps`. PostgreSQL, scoring, and the backend should report
+healthy; the frontend should report up. Runtime logs are available with
+`docker compose logs --tail=100 <service>`.
 
 ### Local development
 
@@ -205,6 +239,9 @@ cp .env.example .env.local && npm install && npm run dev
 
 ### Demo the API directly
 
+These account IDs and months exist in synthetic demo mode. Plaid-created account IDs depend on the
+connection and should be read from `/api/accounts` first.
+
 ```bash
 K='X-API-KEY: dev-local-key'
 
@@ -221,44 +258,93 @@ curl -s -H "$K" 'localhost:8080/api/advice?accountId=2&month=2026-05'
 docker compose stop scoring
 ```
 
-**Optional — live Plaid sandbox.** Put `PLAID_CLIENT_ID` and `PLAID_SECRET` in `backend/.env`, then
-click "Link a bank account" and use `user_good` / `pass_good`.
+**Local processes without Docker.** When starting Spring from `backend/`, put `PLAID_CLIENT_ID` and
+`PLAID_SECRET` in `backend/.env`; Spring imports that file relative to its working directory. Docker
+Compose instead reads the repository-root `.env` described above.
 
-**Optional — live LLM advice.** Add `ANTHROPIC_API_KEY` to `backend/.env`. Without it the advice
-endpoint returns rule-based output labeled `source: "rule-based"` — a designed path, not a failure.
+**Optional — live LLM advice.** Add `ANTHROPIC_API_KEY` to the root `.env` for Docker, or to
+`backend/.env` when running Spring locally. Without it the advice endpoint returns rule-based output
+labeled `source: "rule-based"` — a designed path, not a failure.
+
+---
+
+## Deployment
+
+Ledger Lens is currently a **single-user Plaid Sandbox portfolio application**. It is safe to deploy
+as a demonstration with simulated institutions and simulated money. It is not ready to accept real
+bank connections: there is no user login, tenant isolation, encrypted Plaid-token storage, webhook
+processing, consent workflow, or account-deletion flow.
+
+### Secrets and configuration
+
+Configure these as private environment variables in the deployment platform. Do not put populated
+values in Git, a Dockerfile, frontend variables, or `NEXT_PUBLIC_*` variables.
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `LEDGERLENS_API_KEY` | Yes | Private server-to-server key shared by Next.js and Spring |
+| `POSTGRES_DB` | Yes | PostgreSQL database name |
+| `POSTGRES_USER` | Yes | PostgreSQL application user |
+| `POSTGRES_PASSWORD` | Yes | Strong PostgreSQL password |
+| `PLAID_CLIENT_ID` | For Plaid Link | Your Plaid application ID, supplied by the deployer |
+| `PLAID_SECRET` | For Plaid Link | Your Plaid Sandbox secret, supplied by the deployer |
+| `ANTHROPIC_API_KEY` | No | Enables LLM-written advice; rule-based advice is the fallback |
+| `LEDGERLENS_DEMO_DATA` | No | Set `true` only before initializing a new demo database |
+
+The root [.env.example](.env.example) documents every Compose variable. A root `.env` is convenient
+for a private server and is Git-ignored; a managed host's encrypted secret store is preferred.
+
+### Single-host Docker deployment
+
+1. Install Docker Engine with Compose and place the repository on the server.
+2. Configure the environment variables above through the host's secret manager or a protected root
+   `.env` file.
+3. Put an HTTPS reverse proxy or load balancer in front of port `3000`; do not publicly expose
+   PostgreSQL (`5433`), scoring (`8000`), or Spring (`8080`).
+4. Start the application with `docker compose up -d --build`.
+5. Verify `docker compose ps`, `GET /actuator/health` on the backend, and the onboarding page.
+6. Preserve and back up the `pgdata` volume. `docker compose down -v` permanently deletes it.
+
+The deployer's Plaid API credentials remain server-side. A visitor only clicks **Connect securely
+with Plaid**, selects a simulated institution, and authenticates within Plaid Link. For Sandbox the
+standard test login is `user_good` / `pass_good`; arbitrary credentials do not work.
+
+To support real users later, add application authentication, a user-owned Plaid Item/account model,
+authorization on every data endpoint, encrypted access tokens, webhooks, disconnect and deletion
+controls, production secret management, and Plaid Production approval before changing environments.
 
 ---
 
 ## API surface
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/accounts` | Accounts with transaction counts and months (credentials never included) |
-| `GET /api/transactions?accountId=&month=` | Transactions for a month |
-| `GET /api/summary?accountId=&month=` | Category totals |
-| `GET /api/subscriptions?accountId=` | Detected recurring charges |
-| `POST /api/plaid/link-token` · `/exchange` · `/sync` · `/refresh` | Plaid link and ingestion |
-| `GET /api/scores/archetype?accountId=&month=` | Spending archetype + evidence |
-| `GET /api/scores/anomalies?accountId=` | Flagged charges with reasons |
-| `GET /api/advice?accountId=&month=` | Budget advice (strict JSON) |
-| `GET /api/export/transactions.csv` | Snapshot for the ML pipeline |
-| `GET /actuator/health` | Liveness (unauthenticated by design) |
+| Endpoint                                                          | Purpose                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /api/accounts`                                               | Accounts with transaction counts and months (credentials never included) |
+| `GET /api/transactions?accountId=&month=`                         | Transactions for a month                                                 |
+| `GET /api/summary?accountId=&month=`                              | Category totals                                                          |
+| `GET /api/subscriptions?accountId=`                               | Detected recurring charges                                               |
+| `POST /api/plaid/link-token` · `/exchange` · `/sync` · `/refresh` | Plaid link and ingestion                                                 |
+| `GET /api/scores/archetype?accountId=&month=`                     | Spending archetype + evidence                                            |
+| `GET /api/scores/anomalies?accountId=`                            | Flagged charges with reasons                                             |
+| `GET /api/advice?accountId=&month=`                               | Budget advice (strict JSON)                                              |
+| `GET /api/export/transactions.csv`                                | Snapshot for the ML pipeline                                             |
+| `GET /actuator/health`                                            | Liveness (unauthenticated by design)                                     |
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| API & ingestion | Java 21, Spring Boot 4.1, Spring Data JPA, bucket4j |
-| Database | PostgreSQL 16 |
-| Bank data | Plaid API (Sandbox) |
-| ML pipeline | Python, pandas, scikit-learn (KMeans, Isolation Forest) |
-| Online scoring | FastAPI, Pydantic, uvicorn |
-| LLM | Claude API (`claude-opus-5`), structured outputs |
-| Dashboard | Next.js 16, React 19, TypeScript, Tailwind 4 |
-| Testing | JUnit 5, Mockito, pytest |
-| CI | GitHub Actions — four parallel jobs |
+| Layer           | Technology                                              |
+| --------------- | ------------------------------------------------------- |
+| API & ingestion | Java 21, Spring Boot 4.1, Spring Data JPA, bucket4j     |
+| Database        | PostgreSQL 16                                           |
+| Bank data       | Plaid API (Sandbox)                                     |
+| ML pipeline     | Python, pandas, scikit-learn (KMeans, Isolation Forest) |
+| Online scoring  | FastAPI, Pydantic, uvicorn                              |
+| LLM             | Claude API (`claude-opus-5`), structured outputs        |
+| Dashboard       | Next.js 16, React 19, TypeScript, Tailwind 4            |
+| Testing         | JUnit 5, Mockito, pytest                                |
+| CI              | GitHub Actions — five parallel jobs                     |
 
 Roughly **8,100 lines**: 2,800 Java, 3,100 Python, 1,500 TypeScript, plus SQL and config.
 
@@ -275,7 +361,7 @@ Stated plainly because they'd come up in any technical conversation:
   pagination, idempotent upserts — is identical to production. The money is not.
 - **Most training data is synthetic.** Real sandbox history is 234 transactions across 27
   account-months, far too thin to fit a 14-feature, 6-cluster model. Synthetic users with known
-  archetypes validate the *pipeline*; real months are then scored by the model it produces.
+  archetypes validate the _pipeline_; real months are then scored by the model it produces.
 - **The anomalies detected are ones I designed.** Real fraud is adversarial and adapts.
 - **Plaid provides dates, not timestamps**, so time-of-day — a strong fraud signal — isn't available.
 - **Webhooks were cut for scope.** Refresh is manual/async rather than push-driven.

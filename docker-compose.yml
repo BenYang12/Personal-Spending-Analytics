@@ -22,26 +22,31 @@ services:
       # The image reads these on FIRST startup to create the db and user.
       # Dev-only credentials — in production these come from a secret store,
       # never a file in git.
-      POSTGRES_DB: ledgerlens
-      POSTGRES_USER: ledgerlens
-      POSTGRES_PASSWORD: ledgerlens_dev
+      POSTGRES_DB: ${POSTGRES_DB:-ledgerlens}
+      POSTGRES_USER: ${POSTGRES_USER:-ledgerlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ledgerlens_dev}
+      # New databases start empty. Set LEDGERLENS_DEMO_DATA=true before the
+      # first startup to opt into the synthetic portfolio dataset.
+      LEDGERLENS_DEMO_DATA: ${LEDGERLENS_DEMO_DATA:-false}
     ports:
       # host:container — Spring (on your Mac) will reach it at localhost:5433.
-      - "5433:5432"
+      # Loopback-only: never expose the database on a deployed host's public IP.
+      - "127.0.0.1:5433:5432"
     volumes:
       # volume -> durable storage that outlives the container
       # Named volume: the database files live in Docker-managed storage and
       # survive container restarts. `docker compose down -v` deletes it (reset).
       # mount the named volume pgdata at the path, attach file system into existing directory tree
       - pgdata:/var/lib/postgresql/data
-      # Init hook: every .sql in this dir runs in alphabetical order, but ONLY
-      # when the data volume is empty (first boot). schema.sql then seed.sql
-      # ("sch" < "se" alphabetically, so the order is right).
-      - ./db:/docker-entrypoint-initdb.d
+      # Init hooks run only when the data volume is empty. Schema is always
+      # installed; the shell hook loads seed.sql only in explicit demo mode.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/load-demo-data.sh:/docker-entrypoint-initdb.d/02-load-demo-data.sh:ro
+      - ./db/seed.sql:/demo/seed.sql:ro
     healthcheck:
       # pg_isready is the correct probe: the container process starts well before
       # the database is ready to accept connections.
-      test: ["CMD-SHELL", "pg_isready -U ledgerlens -d ledgerlens"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -54,7 +59,8 @@ services:
       dockerfile: scoring/Dockerfile
     container_name: ledgerlens-scoring
     ports:
-      - "8000:8000"
+      # Exposed to the host for local diagnostics, not to the public network.
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped
 
   backend:
@@ -71,9 +77,9 @@ services:
     environment:
       # Container-to-container: hostnames are service names, and the port is the
       # container's own 5432 — the 5433 mapping only applies from the host.
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ledgerlens
-      SPRING_DATASOURCE_USERNAME: ledgerlens
-      SPRING_DATASOURCE_PASSWORD: ledgerlens_dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ledgerlens}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ledgerlens}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-ledgerlens_dev}
       SCORING_SERVICE_URL: http://scoring:8000
       LEDGERLENS_API_KEY: ${LEDGERLENS_API_KEY:-dev-local-key}
       # Optional. Absent → Plaid endpoints return errors but the app runs.
@@ -82,7 +88,8 @@ services:
       # Optional. Absent → advice falls back to rule-based, by design.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
-      - "8080:8080"
+      # The browser talks to Next.js; only Next.js talks to this API.
+      - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
   frontend:

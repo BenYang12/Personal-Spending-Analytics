@@ -1,7 +1,7 @@
 name: CI
 
-# Runs on every push and PR to main. Three independent jobs rather than one
-# sequential script: the Java, ML, and scoring suites don't depend on each
+# Runs on every push and PR to main. Five independent jobs rather than one
+# sequential script: the application and deployment checks don't depend on each
 # other, so running them in parallel means a red build tells me WHICH layer
 # broke without reading a 200-line log.
 on:
@@ -11,6 +11,20 @@ on:
     branches: [main]
 
 jobs:
+  deployment-config:
+    name: Deployment configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Validate database initialization hook
+        run: |
+          test -x db/load-demo-data.sh
+          bash -n db/load-demo-data.sh
+
   backend:
     name: Backend (JUnit)
     runs-on: ubuntu-latest
