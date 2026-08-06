@@ -57,7 +57,7 @@ export function Card({
  * Amber rather than red, and it always carries TEXT: colour alone would be
  * invisible to a colourblind user and to anyone using a screen reader.
  */
-export function StaleBadge({ label = "Cached" }: { label?: string }) {
+export function StaleBadge({ label }: { label: string }) {
   return (
     <span
       className="shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1

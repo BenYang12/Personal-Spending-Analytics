@@ -24,18 +24,6 @@ const currencyCompact = new Intl.NumberFormat("en-US", {
 export const money = (amount: number) => currency.format(amount);
 export const moneyShort = (amount: number) => currencyCompact.format(amount);
 
-/**
- * Signed money, for anything that can be a credit.
- *
- * My backend follows Plaid's convention where positive means money OUT, which
- * is the opposite of what a reader expects from a plain number. Flipping the
- * sign and labelling it here keeps that convention from leaking into the UI as
- * a "-$2,150.00 income" that reads like a loss.
- */
-export function signedMoney(amount: number): string {
-  return amount < 0 ? `+${currency.format(Math.abs(amount))}` : currency.format(amount);
-}
-
 export const percent = (fraction: number) => `${Math.round(fraction * 100)}%`;
 
 /** "2026-05-17" → "May 17, 2026". Never a locale-ambiguous 5/17 vs 17/5. */
@@ -103,7 +91,7 @@ export function featureLabel(feature: string): string {
  * dollar amounts must not. Getting this backwards would print "2455%" for a
  * typical purchase size of $24.55.
  */
-export const isRatioFeature = (feature: string) =>
+const isRatioFeature = (feature: string) =>
   feature.endsWith("_ratio") ||
   feature.endsWith("_share") ||
   feature.startsWith("share_");

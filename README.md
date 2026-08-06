@@ -6,26 +6,28 @@ Ingests bank transactions through the Plaid API, clusters months into human-read
 archetypes, and runs fraud-style anomaly detection to flag unusual charges — with a language model
 strictly downstream of the deterministic ML, constrained to a JSON schema it cannot break.
 
-> **Status: backend complete and demo-able.** All ingestion, storage, ML, scoring, and advice
-> layers are built, tested, and runnable end to end. The web dashboard is the remaining work —
-> see [What's next](#whats-next).
+```bash
+git clone <this-repo> && cd Personal-Spending-Analytics
+docker compose up -d          # then open http://localhost:3000
+```
+
+Four services, one command, seeded data included. No API keys required to see the full dashboard.
 
 ---
 
-## Why this is different from a budgeting app
+## Why this isn't a budgeting app
 
 Commercial budget apps **categorize**: they tell you that you spent $820 on dining. This one
 **models behavior**:
 
-- **Unsupervised clustering** groups each account-month into one of six archetypes —
-  *Weekend Spender*, *Subscription Creep*, *Big-Ticket Buyer* — derived from 14 behavioral
-  features, not hand-written rules.
+- **Unsupervised clustering** assigns each account-month one of six archetypes — *Weekend Spender*,
+  *Subscription Creep*, *Big-Ticket Buyer* — from 14 behavioral features, not hand-written rules.
 - **Anomaly detection** scores every transaction against *that account's own history*, so a $400
   grocery run is routine for one user and flagged for another.
-- **Both models are evaluated with real numbers**, not vibes — including a comparison against a
-  simpler baseline that the fancy model does not always win.
-- **The LLM never decides anything.** It receives only the models' output and writes English about
-  it. It cannot see raw transactions and cannot declare a charge anomalous.
+- **Both models are evaluated with real numbers**, including a comparison against a simpler
+  baseline that the sophisticated model does not always win.
+- **The LLM decides nothing.** It receives model output and writes English about it. It cannot see
+  raw transactions and cannot declare a charge anomalous.
 
 ---
 
@@ -33,8 +35,8 @@ Commercial budget apps **categorize**: they tell you that you spent $820 on dini
 
 ### Anomaly detection — Isolation Forest vs. a statistical baseline
 
-Measured on held-out accounts with freshly injected anomalies. Full protocol, limitations, and
-per-attack breakdown in **[ml/EVALUATION.md](ml/EVALUATION.md)**.
+Measured on held-out accounts with freshly injected anomalies. Full protocol and limitations in
+**[ml/EVALUATION.md](ml/EVALUATION.md)**.
 
 | Method | Precision | Recall | F1 | Average precision |
 |---|---|---|---|---|
@@ -50,14 +52,14 @@ per-attack breakdown in **[ml/EVALUATION.md](ml/EVALUATION.md)**.
 | Card-testing burst (several tiny charges, one day) | **81%** | **0%** |
 
 The baseline **wins** on simple amount spikes — a z-score is the right tool for "one number is
-large." The forest wins where multiple weak signals have to combine. The honest production
-conclusion is to run both and take the union.
+large." The forest wins where weak signals have to combine. The honest production conclusion is to
+run both and take the union.
 
 ### Spending archetypes — clustering, validated
 
 k=6 chosen by silhouette analysis (0.487) over 371 account-months × 14 features.
 
-Unsupervised learning normally gives you no way to check whether clusters mean anything. Because
+Unsupervised learning normally offers no way to check whether clusters mean anything. Because
 synthetic users were generated with *known* archetypes, the pipeline can be scored against ground
 truth:
 
@@ -65,6 +67,32 @@ truth:
 |---|---|
 | Adjusted Rand Index | **0.986** |
 | Cluster purity | **0.994** |
+
+---
+
+## The dashboard
+
+A single scrolling page, server-rendered, showing the model output in the order a person actually
+asks about it: *who am I → where did it go → what looks wrong → what should I do.*
+
+| Panel | What it shows |
+|---|---|
+| **Spending archetype** | The cluster label plus the evidence — "78% weekend spend vs 42% typical" |
+| **Where it went** | Category breakdown as CSS bars inside a real `<table>` |
+| **Spending trend** | Six months of totals, selected month highlighted |
+| **Unusual charges** | Flagged transactions with amounts, dates, and why they were flagged |
+| **Recurring charges** | Detected subscriptions, led by annual cost |
+| **Budget advice** | Summary, three recommendations, always labeled AI-generated or rule-based |
+
+Two product decisions worth calling out:
+
+**Anomalies are framed as "worth reviewing," not fraud alerts.** At 0.645 precision roughly one flag
+in three is a false positive. Red alarm styling would misrepresent what the model knows and train
+users to distrust it, so the panel uses neutral amber and footnotes the precision.
+
+**Advice always shows its provenance.** The badge reads *AI-generated* or *Rule-based* every time,
+not only on failure — hiding it would imply AI authorship is the norm and conceal the fallback that
+makes the feature work with no API key at all.
 
 ---
 
@@ -93,17 +121,15 @@ flowchart TB
     api --> pg
     api -->|archetype + categories<br/>+ flagged charges ONLY| claude[Claude API<br/>strict JSON schema]
     claude -->|validated advice| api
-    api --> ui[Next.js dashboard<br/>— not yet built —]
+    ui[Next.js dashboard<br/>Server Components] -->|API key stays server-side| api
 
-    style ui stroke-dasharray: 5 5
     style claude fill:#f5f0e8
 ```
 
-**Three design decisions worth defending in an interview:**
+**Four design decisions worth defending in an interview:**
 
 1. **Offline training / online scoring split.** Models are fit on a laptop and shipped as pickles;
-   the scoring service only loads and applies them. Training never runs in a request path, and the
-   API never waits on model fitting.
+   the scoring service only loads and applies them. Training never runs in a request path.
 
 2. **One implementation of feature engineering.** The scoring service imports the exact feature code
    used for training rather than reimplementing it in Java. Two implementations of 26 feature
@@ -112,96 +138,94 @@ flowchart TB
 
 3. **Immutable events vs. derived data.** `transactions` is the source of truth and is never edited
    by analytics. `monthly_features`, `model_scores`, and `advice_cache` are derived — deletable and
-   rebuildable at any time. Model scores live in their own table so a retrain never rewrites
-   financial records.
+   rebuildable. Model scores live in their own table so a retrain never rewrites financial records.
+
+4. **The dashboard reads through Server Components.** The API key is used server-side and never
+   reaches the browser *by construction* — there is nothing to leak. Only the browser-initiated
+   Plaid mutations go through a proxy route, which carries an endpoint allowlist.
 
 ---
 
 ## Engineering highlights
 
 **Idempotent transaction ingestion.** Plaid's `/transactions/sync` returns `added`, `modified`, and
-`removed` lists with cursor pagination. Re-running a completed sync returns `added: 0` — verified
-by a database-level `UNIQUE` constraint *and* application-level upserts, so a bug in one layer
-cannot produce duplicates.
+`removed` with cursor pagination. Re-running a completed sync returns `added: 0` — enforced by a
+database `UNIQUE` constraint *and* application-level upserts, so a bug in one layer cannot produce
+duplicates.
 
-**Graceful degradation, tested.** Killing the ML service mid-session returns cached scores marked
-`stale: true` in **under 25ms** rather than a 500 — the transactions stay visible because they're
-facts that don't depend on a model being up. Same pattern for the LLM: no API key means rule-based advice,
-not a broken page.
+**Graceful degradation, tested end to end.** Killing the ML service returns cached scores marked
+`stale: true` in under 25ms rather than a 500. The dashboard renders every panel with honest
+"Showing last known results" badges — transactions stay visible because they're facts that don't
+depend on a model being up. Same for the LLM: no API key means rule-based advice, not a broken page.
 
 **Credential handling.** Plaid access tokens live in Postgres and are provably absent from every API
-response (enforced by a DTO with no such field, not by remembering to strip it). The frontend proxy
-pattern keeps the backend API key server-side.
+response — enforced by a DTO with no such field, not by remembering to strip it.
+
+**Cache invalidation by content, not time.** Cached advice is keyed on a SHA-256 hash of the ML
+inputs it describes. A new transaction or a retrain changes the hash and the advice regenerates, so
+cached advice can never describe data that no longer exists.
 
 **Rate limiting and auth.** Every endpoint sits behind an `X-API-KEY` servlet filter using
 constant-time comparison, with a bucket4j token bucket at 60 requests/minute.
-
-**Cache invalidation by content, not time.** Cached LLM advice is keyed on a SHA-256 hash of the ML
-inputs it describes. A new transaction or a retrain changes the hash and the advice regenerates —
-so cached advice can never describe data that no longer exists.
 
 ---
 
 ## Run it
 
-**Prerequisites:** Docker, JDK 21+, Python 3.11+.
+### Everything in Docker (recommended)
 
 ```bash
-# 1. Database (schema + ~200 seeded transactions with planted patterns)
 docker compose up -d
-
-# 2. ML pipeline — trains the models and writes the evaluation table
-cd ml
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python synthesize.py       # 60 synthetic users, known archetypes
-.venv/bin/python features.py         # behavioral feature vectors
-.venv/bin/python train_clusters.py   # KMeans + archetype naming
-.venv/bin/python train_anomaly.py    # Isolation Forest
-.venv/bin/python evaluate.py         # → ml/EVALUATION.md
-
-# 3. Scoring service
-cd ../scoring
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app:app --port 8000     # docs at localhost:8000/docs
-
-# 4. Backend API
-cd ../backend && ./gradlew bootRun         # localhost:8080
 ```
 
-### Demo script
+Postgres, the scoring service, the Spring API, and the dashboard. Open **http://localhost:3000**.
+The database seeds itself with ~200 transactions containing deliberate patterns — subscriptions,
+weekend spikes, and one planted $1,899 anomaly.
+
+### Local development
+
+```bash
+docker compose up -d postgres              # database only
+
+cd ml                                       # train the models
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python synthesize.py && .venv/bin/python features.py
+.venv/bin/python train_clusters.py && .venv/bin/python train_anomaly.py
+.venv/bin/python evaluate.py                # → ml/EVALUATION.md
+
+cd ../scoring                               # scoring service :8000
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app:app --port 8000
+
+cd ../backend && ./gradlew bootRun          # API :8080
+
+cd ../frontend                              # dashboard :3000
+cp .env.example .env.local && npm install && npm run dev
+```
+
+### Demo the API directly
 
 ```bash
 K='X-API-KEY: dev-local-key'
 
-# Auth is enforced
-curl -i localhost:8080/api/accounts                    # 401
-curl -s -H "$K" localhost:8080/api/accounts            # 200 — no tokens in the payload
+curl -i localhost:8080/api/accounts                     # 401 — auth enforced
+curl -s -H "$K" localhost:8080/api/accounts             # 200 — no tokens in payload
 
-# Spending archetype for a month, with the evidence behind it
 curl -s -H "$K" 'localhost:8080/api/scores/archetype?accountId=2&month=2026-05'
-
-# Flagged transactions with human-readable reasons
 curl -s -H "$K" 'localhost:8080/api/scores/anomalies?accountId=2'
-
-# Budget advice — strict JSON, with a `source` field showing how it was produced
+curl -s -H "$K" 'localhost:8080/api/subscriptions?accountId=2'
 curl -s -H "$K" 'localhost:8080/api/advice?accountId=2&month=2026-05'
 
-# Graceful degradation: kill the scoring service, then re-run the archetype call.
-# Returns stale:true with cached data instead of an error.
+# Graceful degradation: stop the scoring service, then re-run the archetype
+# call. Returns stale:true with cached data instead of an error.
+docker compose stop scoring
 ```
 
-**Optional — live Plaid sandbox.** Put `PLAID_CLIENT_ID` and `PLAID_SECRET` in `backend/.env`, then:
-
-```bash
-curl -s -X POST -H "$K" localhost:8080/api/plaid/sandbox-public-token   # mint a token
-curl -s -X POST -H "$K" -H 'Content-Type: application/json' \
-  -d '{"publicToken":"<token>"}' localhost:8080/api/plaid/exchange       # link accounts
-curl -s -X POST -H "$K" localhost:8080/api/plaid/sync                    # ingest
-curl -s -X POST -H "$K" localhost:8080/api/plaid/sync                    # added: 0 — idempotent
-```
+**Optional — live Plaid sandbox.** Put `PLAID_CLIENT_ID` and `PLAID_SECRET` in `backend/.env`, then
+click "Link a bank account" and use `user_good` / `pass_good`.
 
 **Optional — live LLM advice.** Add `ANTHROPIC_API_KEY` to `backend/.env`. Without it the advice
-endpoint returns rule-based output with `source: "rule-based"` — a designed path, not a failure.
+endpoint returns rule-based output labeled `source: "rule-based"` — a designed path, not a failure.
 
 ---
 
@@ -209,9 +233,10 @@ endpoint returns rule-based output with `source: "rule-based"` — a designed pa
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/accounts` | Linked accounts (credentials never included) |
+| `GET /api/accounts` | Accounts with transaction counts and months (credentials never included) |
 | `GET /api/transactions?accountId=&month=` | Transactions for a month |
 | `GET /api/summary?accountId=&month=` | Category totals |
+| `GET /api/subscriptions?accountId=` | Detected recurring charges |
 | `POST /api/plaid/link-token` · `/exchange` · `/sync` · `/refresh` | Plaid link and ingestion |
 | `GET /api/scores/archetype?accountId=&month=` | Spending archetype + evidence |
 | `GET /api/scores/anomalies?accountId=` | Flagged charges with reasons |
@@ -226,15 +251,19 @@ endpoint returns rule-based output with `source: "rule-based"` — a designed pa
 | Layer | Technology |
 |---|---|
 | API & ingestion | Java 21, Spring Boot 4.1, Spring Data JPA, bucket4j |
-| Database | PostgreSQL 16 (Docker) |
+| Database | PostgreSQL 16 |
 | Bank data | Plaid API (Sandbox) |
 | ML pipeline | Python, pandas, scikit-learn (KMeans, Isolation Forest) |
 | Online scoring | FastAPI, Pydantic, uvicorn |
 | LLM | Claude API (`claude-opus-5`), structured outputs |
+| Dashboard | Next.js 16, React 19, TypeScript, Tailwind 4 |
 | Testing | JUnit 5, Mockito, pytest |
+| CI | GitHub Actions — four parallel jobs |
 
-**88 automated tests** — 36 JUnit (ingestion, scoring integration, degradation, advice validation),
-24 pytest (scoring API contract), 28 pytest (feature engineering, causality, leakage).
+Roughly **8,100 lines**: 2,800 Java, 3,100 Python, 1,500 TypeScript, plus SQL and config.
+
+**88 automated tests** — 36 JUnit (ingestion, scoring degradation, advice validation), 24 pytest
+(scoring API contract), 28 pytest (feature engineering, causality, leakage).
 
 ---
 
@@ -250,26 +279,25 @@ Stated plainly because they'd come up in any technical conversation:
 - **The anomalies detected are ones I designed.** Real fraud is adversarial and adapts.
 - **Plaid provides dates, not timestamps**, so time-of-day — a strong fraud signal — isn't available.
 - **Webhooks were cut for scope.** Refresh is manual/async rather than push-driven.
-- **Rate limiting is per-process.** Running two backend instances doubles the effective limit; a
-  shared Redis bucket is the fix.
+- **Rate limiting is per-process.** Two backend instances double the effective limit; a shared Redis
+  bucket is the fix.
+- **The subscriptions SQL has no automated test.** It uses Postgres-specific `DISTINCT ON` and
+  `DATE_TRUNC`, so an H2-backed test can't run it — that needs Testcontainers. It is verified
+  manually against accounts with known ground truth.
+- **The recurring-charge rule differs slightly between SQL and Python.** The dashboard's query adds
+  cadence and dominance checks that `ml/features.py` lacks, so the `recurring_share` feature still
+  counts high-frequency habits like daily coffee. Aligning them means retraining and re-verifying
+  every metric above — deliberately deferred rather than bundled into a UI change.
 
 ---
 
-## What's next
-
-The backend is complete. Remaining work is presentation and deployment:
-
-| Phase | Work | Estimate |
-|---|---|---|
-| **7 — Dashboard** | Next.js + TypeScript + Tailwind: Plaid Link flow, monthly overview with archetype badge and category breakdown, anomalies view, subscriptions view, advice panel. API routes proxy the backend key so the browser never sees it. Accessibility built in — text alternatives for charts, icon+text for flags (never color alone), keyboard navigation, WCAG AA contrast. | ~1–1.5 wk |
-| **8 — Deploy & polish** | GitHub Actions running all 88 tests, Dockerfile for the backend, deployment to Railway/Render + Supabase + Vercel, demo GIF. | ~0.5–1 wk |
-
-**Known improvements worth making**, in priority order:
+## Improvements worth making next
 
 1. **Combine both anomaly detectors.** The evaluation shows the baseline beating the forest on
    simple amount spikes — the union would outperform either alone.
-2. **Share feature code as a versioned package** rather than a path import, so training and scoring
-   can be deployed independently.
-3. **Normalize the Plaid Item model.** The sync cursor belongs on an `items` table, not duplicated
+2. **Align the two recurring-charge rules** and retrain, closing the divergence noted above.
+3. **Share feature code as a versioned package** rather than a path import, so training and scoring
+   deploy independently.
+4. **Normalize the Plaid Item model.** The sync cursor belongs on an `items` table, not duplicated
    across account rows.
-4. **Redis-backed rate limiting** so limits hold across multiple instances.
+5. **Redis-backed rate limiting** so limits hold across instances.

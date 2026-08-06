@@ -22,7 +22,6 @@ lot more on weekends than typical" without me needing to know what a typical
 weekend ratio is in dollars.
 """
 
-import numpy as np
 
 # How far from average (in standard deviations) a feature must sit before I'll
 # describe it. 0.6 is a judgement call: lower and every cluster gets six
@@ -174,30 +173,3 @@ def name_clusters(kmeans, scaler, feature_names: list[str]) -> dict[int, dict]:
         }
 
     return names
-
-
-def explain_month(features_row: dict[str, float], scaler, feature_names: list[str],
-                  limit: int = 3) -> list[dict]:
-    """Explain one specific month against the population average.
-
-    My dashboard needs to say "you're a Weekend Spender BECAUSE 78% of your
-    spending was Fri-Sun, versus 42% typical". This produces that comparison,
-    reusing the fitted scaler so "typical" means the training population rather
-    than something I made up.
-    """
-    values = np.array([[features_row[name] for name in feature_names]], dtype=float)
-    scaled = scaler.transform(values)[0]
-
-    ranked = sorted(zip(feature_names, scaled, values[0]),
-                    key=lambda item: abs(item[1]), reverse=True)
-
-    out = []
-    for feature, z, raw in ranked[:limit]:
-        index = feature_names.index(feature)
-        out.append({
-            "feature": feature,
-            "your_value": round(float(raw), 3),
-            "population_average": round(float(scaler.mean_[index]), 3),
-            "std_devs_from_average": round(float(z), 2),
-        })
-    return out

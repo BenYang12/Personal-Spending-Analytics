@@ -1,0 +1,123 @@
+name: CI
+
+# Runs on every push and PR to main. Three independent jobs rather than one
+# sequential script: the Java, ML, and scoring suites don't depend on each
+# other, so running them in parallel means a red build tells me WHICH layer
+# broke without reading a 200-line log.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (JUnit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          # Caches ~/.gradle between runs. Without it every build re-downloads
+          # Spring Boot and the Plaid SDK, which is minutes of nothing.
+          cache: gradle
+
+      - name: Run tests
+        working-directory: backend
+        # No database needed: these are plain Mockito unit tests over the
+        # ingestion, scoring-degradation, and advice-validation logic. That was
+        # a deliberate design choice — a suite that needs Postgres to run is a
+        # suite that gets skipped locally.
+        run: ./gradlew test --no-daemon
+
+      - name: Publish test report
+        # Runs even when tests fail — that's when you most want the report.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/build/reports/tests/test/
+          retention-days: 7
+
+  ml-pipeline:
+    name: ML pipeline (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+
+      - name: Install dependencies
+        working-directory: ml
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: ml
+        # Feature-engineering tests: category reconciliation, recurring
+        # detection, and the causality checks that prove no future data leaks
+        # into a transaction's features. All operate on hand-built frames, so
+        # no exported data or trained model is required.
+        run: python -m pytest tests/ -v
+
+  scoring-service:
+    name: Scoring service (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scoring/requirements.txt
+
+      - name: Install dependencies
+        working-directory: scoring
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: scoring
+        # These load the committed pickles from ml/models/ and exercise the
+        # FastAPI contract in-process. The models are in git precisely so this
+        # job doesn't have to retrain on every push.
+        run: python -m pytest tests/ -v
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        # `npm ci` not `npm install`: it installs exactly the lockfile, so CI
+        # can't silently pick up a newer transitive dependency than I tested.
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: frontend
+        # Env vars are required at build time but never used — the build renders
+        # no pages that call the API (the dashboard route is dynamic). Dummy
+        # values keep the build honest without needing real secrets in CI.
+        env:
+          LEDGERLENS_API_URL: http://localhost:8080
+          LEDGERLENS_API_KEY: ci-build-only
+        run: npm run build

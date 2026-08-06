@@ -184,7 +184,7 @@ export const getAdvice = (accountId: number, month: string) =>
 export async function getSpendTrend(
   accountId: number,
   endMonth: string,
-  count = 6,
+  count: number,
 ): Promise<{ month: string; total: number }[]> {
   const months = recentMonths(endMonth, count);
 
@@ -207,7 +207,7 @@ export async function getSpendTrend(
 // ---------------------------------------------------------------------------
 
 /** The `count` months ending at `endMonth` (YYYY-MM), oldest first. */
-export function recentMonths(endMonth: string, count: number): string[] {
+function recentMonths(endMonth: string, count: number): string[] {
   const [year, month] = endMonth.split("-").map(Number);
   const months: string[] = [];
 

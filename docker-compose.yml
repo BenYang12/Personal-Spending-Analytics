@@ -1,5 +1,19 @@
 # Declarative dev infrastructure: `docker compose up -d` reads this and starts
 # everything. Each entry under `services` becomes one container.
+#
+# Two ways to run this project:
+#
+#   docker compose up -d postgres     Database only — run the app locally with
+#                                     ./gradlew bootRun, uvicorn, npm run dev.
+#                                     Best for development.
+#
+#   docker compose up -d              The whole stack. Best for a demo: one
+#                                     command, then open localhost:3000.
+#
+# `depends_on: condition: service_healthy` is what makes the second form work.
+# Without it, Spring would start before Postgres is accepting connections and
+# fail on a datasource it can't reach — a race that shows up as a flaky "works
+# on the second try" startup.
 services:
   postgres:
     image: postgres:16 # official image, major version pinned
@@ -12,7 +26,7 @@ services:
       POSTGRES_USER: ledgerlens
       POSTGRES_PASSWORD: ledgerlens_dev
     ports:
-      # host:container — Spring (on your Mac) will reach it at localhost:5432.
+      # host:container — Spring (on your Mac) will reach it at localhost:5433.
       - "5433:5432"
     volumes:
       # volume -> durable storage that outlives the container
@@ -21,9 +35,68 @@ services:
       # mount the named volume pgdata at the path, attach file system into existing directory tree
       - pgdata:/var/lib/postgresql/data
       # Init hook: every .sql in this dir runs in alphabetical order, but ONLY
-      # when the data volume is empty (first boot). schema.sql now; seed.sql
-      # joins it in Step 3 ("sch" < "se" alphabetically, so order stays right).
+      # when the data volume is empty (first boot). schema.sql then seed.sql
+      # ("sch" < "se" alphabetically, so the order is right).
       - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      # pg_isready is the correct probe: the container process starts well before
+      # the database is ready to accept connections.
+      test: ["CMD-SHELL", "pg_isready -U ledgerlens -d ledgerlens"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  scoring:
+    build:
+      # Context is the REPO ROOT, not ./scoring — the image needs ml/ too,
+      # because the service imports the same feature code used for training.
+      context: .
+      dockerfile: scoring/Dockerfile
+    container_name: ledgerlens-scoring
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: ledgerlens-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # Started, not healthy: the backend is DESIGNED to run without the scoring
+      # service — it degrades to cached scores. Requiring health here would
+      # contradict the resilience the whole architecture is built around.
+      scoring:
+        condition: service_started
+    environment:
+      # Container-to-container: hostnames are service names, and the port is the
+      # container's own 5432 — the 5433 mapping only applies from the host.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ledgerlens
+      SPRING_DATASOURCE_USERNAME: ledgerlens
+      SPRING_DATASOURCE_PASSWORD: ledgerlens_dev
+      SCORING_SERVICE_URL: http://scoring:8000
+      LEDGERLENS_API_KEY: ${LEDGERLENS_API_KEY:-dev-local-key}
+      # Optional. Absent → Plaid endpoints return errors but the app runs.
+      PLAID_CLIENT_ID: ${PLAID_CLIENT_ID:-}
+      PLAID_SECRET: ${PLAID_SECRET:-}
+      # Optional. Absent → advice falls back to rule-based, by design.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: ledgerlens-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      LEDGERLENS_API_URL: http://backend:8080
+      LEDGERLENS_API_KEY: ${LEDGERLENS_API_KEY:-dev-local-key}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
 
 volumes:
   pgdata:

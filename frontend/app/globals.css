@@ -1,26 +1,7 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* The scaffold shipped Geist font variables, a dark-mode palette, and a
+   `body { font-family: Arial }` rule that silently overrode the font it had
+   just loaded over the network. All three are gone — the dashboard commits to
+   one light palette, and the fonts declared in layout.tsx are the ones that
+   actually render. */

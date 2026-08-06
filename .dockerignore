@@ -1,0 +1,23 @@
+# Keeps build contexts small and, more importantly, keeps secrets out of images.
+# A .env copied into a layer is recoverable from the image even if a later layer
+# deletes it — layers are additive, not editable.
+**/.env
+**/.env.local
+
+# Dependencies and build output — reinstalled or regenerated inside the image.
+**/node_modules
+**/.next
+**/build
+**/.gradle
+**/.venv
+**/__pycache__
+**/.pytest_cache
+
+# Data snapshots: regenerable exports of the database, not source.
+ml/data/*.csv
+
+# Local tooling and history.
+.git
+.github
+**/.DS_Store
+*.log

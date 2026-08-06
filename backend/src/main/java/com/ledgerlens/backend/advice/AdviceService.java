@@ -3,7 +3,6 @@ package com.ledgerlens.backend.advice;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.StructuredMessageCreateParams;
-import java.math.BigDecimal;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -208,9 +207,5 @@ public class AdviceService {
     /** Exposed so my controller can report LLM availability without a live call. */
     public boolean isLlmAvailable() {
         return anthropic.isPresent();
-    }
-
-    static BigDecimal safe(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
     }
 }
